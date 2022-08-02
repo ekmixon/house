@@ -36,7 +36,7 @@ class User(UserMixin):
         self.id = id
         
     def __repr__(self):
-        return "User: %s" % (self.id)
+        return f"User: {self.id}"
 
 session_user = User(random_token)
 
@@ -64,7 +64,7 @@ def sock_connect():
 def sock_auth(msg):
     uuid = str(msg.get('uuid'))
     # print (stylize("[+] Login.. with uuid : {}".format(uuid), Info))
-    if hmac.compare_digest(str(uuid), str(random_token)):
+    if hmac.compare_digest(uuid, str(random_token)):
         this_user = User(uuid)
         login_user(this_user)
         emit("authenticated..")
@@ -127,7 +127,12 @@ def update_EnumConfig(message):
     class_to_find = message.get('class_to_find')
     class_pattern = message.get('class_pattern')
     if class_to_find != None:
-        house_global.enum_class = class_to_find if ('.' in class_to_find) else house_global.packagename + '.' + class_to_find
+        house_global.enum_class = (
+            class_to_find
+            if '.' in class_to_find
+            else f'{house_global.packagename}.{class_to_find}'
+        )
+
     if class_pattern != None:
         house_global.enum_class_pattern = class_pattern
     if enum_option != None:
@@ -175,7 +180,13 @@ def get_history_script(data):
             script_content = f.read()
             emit("update_script_content",{'script': script_content, "option": option})
     except Exception as e:
-        emit("update_script_content",{'script': "[!] Failed to get script: " + str(e), "option": option})
+        emit(
+            "update_script_content",
+            {
+                'script': f"[!] Failed to get script: {str(e)}",
+                "option": option,
+            },
+        )
 
 @socketio.on('save_script', namespace='/eventBus')
 @authenticated_only
@@ -188,20 +199,20 @@ def save_script(save_script_data):
 
     if option == "hook":
         try:
-            with open("./cache/hook/" + filename, 'w') as f:
+            with open(f"./cache/hook/{filename}", 'w') as f:
                 f.write(script)
         except Exception as e:
             raise e
     elif option == "enum":
-        
+
         try:
-            with open("./cache/enum/" + filename, 'w') as f:
+            with open(f"./cache/enum/{filename}", 'w') as f:
                 f.write(script)
         except Exception as e:
             raise e
     elif option == "intercept":
         try:
-            with open("./cache/intercept/" + filename, 'w') as f:
+            with open(f"./cache/intercept/{filename}", 'w') as f:
                 f.write(script)
         except Exception as e:
             raise e
@@ -212,29 +223,29 @@ def save_script(save_script_data):
 @authenticated_only
 def deleteScript(data):
     path = data.get('path')
-    if path != None:
-        if path.startswith('./cache/enum'):
-            fn = './cache/enum/' + os.path.basename(path)
-            op = "enum"
-
-        elif path.startswith('./cache/hook'):
-            fn = './cache/hook/' + os.path.basename(path)
-            op = "hook"
-
-        elif path.startswith('./cache/intercept'):
-            fn = './cache/intercept/' + os.path.basename(path)
-            op = "intercept"
-        else:
-            return
-    else:
+    if path is None:
         emit('new_error_message',{'data' : "[!] What are you trying to delete?"})
         return
 
+    else:
+        if path.startswith('./cache/enum'):
+            fn = f'./cache/enum/{os.path.basename(path)}'
+            op = "enum"
+
+        elif path.startswith('./cache/hook'):
+            fn = f'./cache/hook/{os.path.basename(path)}'
+            op = "hook"
+
+        elif path.startswith('./cache/intercept'):
+            fn = f'./cache/intercept/{os.path.basename(path)}'
+            op = "intercept"
+        else:
+            return
     try:
         os.remove(fn)
         emit("refresh_history_script",{'option': op})
     except Exception as e:
-        emit('new_error_message',{'data' : "[!] Cannot delete: " + str(e)})
+        emit('new_error_message', {'data': f"[!] Cannot delete: {str(e)}"})
 
 @socketio.on('gen_script', namespace='/eventBus')
 @authenticated_only
@@ -298,7 +309,7 @@ def doLoadHook(message):
         try:
             load_script()
         except Exception as e:
-            print ("doLoadHook exception caught!" + str(e))
+            print(f"doLoadHook exception caught!{str(e)}")
             clear_hook_msg()
             hook_exception = {"exception" : str(e)}
             house_global.messages.insert(0,hook_exception)
@@ -331,7 +342,10 @@ def doEnv():
         load_script()
     except Exception as e:
         # IPython.embed()
-        emit('update_env_info',{'error': cgi.escape("[!]load_script Exception: {}".format(str(e)))})
+        emit(
+            'update_env_info',
+            {'error': cgi.escape(f"[!]load_script Exception: {str(e)}")},
+        )
 
 @socketio.on('loadStetho', namespace='/eventBus')
 def doLoadStetho():
@@ -340,7 +354,14 @@ def doLoadStetho():
         preload_stetho_script()
     except Exception as e:
         # IPython.embed()
-        emit('sideload_stetho_error',{'error': cgi.escape("[!]preload_stetho_script Exception: {}".format(str(e)))})
+        emit(
+            'sideload_stetho_error',
+            {
+                'error': cgi.escape(
+                    f"[!]preload_stetho_script Exception: {str(e)}"
+                )
+            },
+        )
 
 @socketio.on('runpreload', namespace='/eventBus')
 def runpreload(preload_message):
@@ -350,7 +371,10 @@ def runpreload(preload_message):
         run_preload_script()
     except Exception as e:
         # IPython.embed()
-        emit('runpreload',{'error': cgi.escape("[!]preload_script Exception: {}".format(str(e)))})
+        emit(
+            'runpreload',
+            {'error': cgi.escape(f"[!]preload_script Exception: {str(e)}")},
+        )
 
 
 @socketio.on('loadMonitor', namespace='/eventBus')
@@ -362,7 +386,10 @@ def doloadMonitor(monitor_message):
         # check_monitor_running()
     except Exception as e:
         # IPython.embed()
-        emit('doloadMonitor',{'error': cgi.escape("[!]doloadMonitor Exception: {}".format(str(e)))})
+        emit(
+            'doloadMonitor',
+            {'error': cgi.escape(f"[!]doloadMonitor Exception: {str(e)}")},
+        )
 
 
 @socketio.on('endpreload', namespace='/eventBus')
@@ -374,7 +401,7 @@ def endpreload():
         # check_monitor_running()
     except Exception as e:
         # IPython.embed()
-        emit('endpreload',{'error': cgi.escape("[!]endpreload Exception: {}".format(str(e)))})
+        emit('endpreload', {'error': cgi.escape(f"[!]endpreload Exception: {str(e)}")})
 
 
 @socketio.on('unloadMonitor', namespace='/eventBus')
@@ -386,7 +413,10 @@ def dounloadMonitor():
         # check_monitor_running()
     except Exception as e:
         # IPython.embed()
-        emit('dounloadMonitor',{'error': cgi.escape("[!]dounloadMonitor Exception: {}".format(str(e)))})
+        emit(
+            'dounloadMonitor',
+            {'error': cgi.escape(f"[!]dounloadMonitor Exception: {str(e)}")},
+        )
 
 @socketio.on('doInspect', namespace='/eventBus')
 @authenticated_only
@@ -399,7 +429,7 @@ def doInspect(message):
     ins_methodname = message.get('ins_methodname')
 
     if (ins_classname != None) & (ins_methodname != None):
-        house_global.inspect_conf['classname'] = ins_classname 
+        house_global.inspect_conf['classname'] = ins_classname
         house_global.inspect_conf['methodname'] = ins_methodname
 
         update_conf()
@@ -409,9 +439,14 @@ def doInspect(message):
         try:
             load_script()
         except Exception as e:
-            house_global.inspect_result = "<p><code>[!] Exception: {}</code></p>".format(str(e))
-            print (stylize("Exception caught in doInspect: {}".format(e), Info))
-            update_inspect_result = {'classname': house_global.inspect_conf["classname"], 'methodname' : house_global.inspect_conf["methodname"], 'inspect_result': (str(house_global.inspect_result))}
+            house_global.inspect_result = f"<p><code>[!] Exception: {str(e)}</code></p>"
+            print(stylize(f"Exception caught in doInspect: {e}", Info))
+            update_inspect_result = {
+                'classname': house_global.inspect_conf["classname"],
+                'methodname': house_global.inspect_conf["methodname"],
+                'inspect_result': house_global.inspect_result,
+            }
+
             cache_inspect_html()
             socketio.emit('update_inspect_result', update_inspect_result, namespace='/eventBus')
             house_global.onMessageException = ''
@@ -451,7 +486,7 @@ def genIntercept(message):
     methodname = j_intercept.get("methodname")
     overloadIndex = j_intercept.get("overloadIndex")
 
-    if overloadIndex == None:
+    if overloadIndex is None:
         overloadIndex = 0
     house_global.intercept_script = prepare_script_fragment(clazz_name, methodname, "intercept", overloadIndex)
     socketio.emit('update_intercept_script', {'script': house_global.intercept_script}, namespace='/eventBus')
@@ -466,7 +501,7 @@ def load_intercept_script(message):
     try:
         load_script()
     except Exception as e:
-        house_global.intercept_exception = "[!] intercept_exception: {}".format(str(e))
+        house_global.intercept_exception = f"[!] intercept_exception: {str(e)}"
         socketio.emit('new_intercept', {'data': house_global.intercept_exception, 'time': house_global.new_intercept_time}, namespace='/eventBus')
 
 
@@ -479,9 +514,15 @@ def sock_intercept(message):
     j_param = message['data']
     time_stamp = message['time'].replace('"','')
     if (j_option == "intercept_param"):
-        print (stylize("[+] Posting {} @ {} to Frida..".format(json.loads(j_param),time_stamp),Info))
+        print(
+            stylize(
+                f"[+] Posting {json.loads(j_param)} @ {time_stamp} to Frida..",
+                Info,
+            )
+        )
+
 
         house_global.script.post({'type': 'input', 'payload': json.loads(j_param), 'time': time_stamp, 'option': "intercept_param"})
-    elif (j_option == "intercept_repl"):
-        print (stylize("[+] Posting {} to Frida REPL..".format(j_param),Info))
+    elif j_option == "intercept_repl":
+        print(stylize(f"[+] Posting {j_param} to Frida REPL..", Info))
         house_global.script.post({'type': 'input', 'payload': j_param, 'time': time_stamp, 'option': "intercept_repl"})

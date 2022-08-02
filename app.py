@@ -35,11 +35,7 @@ log.setLevel(logging.ERROR)
 
 @app.route('/')
 def hello():
-    if str(request.remote_addr) == "127.0.0.1":
-        # no dns rebinding
-        return refresh()
-    else:
-        return ''
+    return refresh() if str(request.remote_addr) == "127.0.0.1" else ''
 
 @app.route('/messages', methods=['GET'])
 def message():
@@ -82,7 +78,7 @@ def getHookScript():
             house_global.hook_script = f.read()
     except Exception as e:
         house_global.hook_script = str(e)
-        
+
     if checkok():
         return house_global.hook_script
     else:
@@ -95,7 +91,7 @@ def getHookScriptMini():
             house_global.hook_script_mini = f.read()
     except Exception as e:
         house_global.hook_script_mini = str(e)
-        
+
     if checkok():
         return house_global.hook_script_mini
     else:
@@ -185,13 +181,10 @@ Communications will happen over USB, make sure have your android device plugged 
             except Exception as e:
                 print (stylize("[!]monitor_conf invalid format",Error))
     init_settings()
-    
+
     host = "127.0.0.1"
-    if len(argv) > 1:
-        port = int(argv[1])
-    else:
-        port  = 8000
-    print (stylize("[+] House running at http://127.0.0.1:{}".format(port), Info))
+    port = int(argv[1]) if len(argv) > 1 else 8000
+    print(stylize(f"[+] House running at http://127.0.0.1:{port}", Info))
 
     app.jinja_env.auto_reload = True
     app.config['TEMPLATES_AUTO_RELOAD'] = True

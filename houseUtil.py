@@ -100,7 +100,6 @@ def get_apk_path():
         return j_env_conf.get("packageCodePath")
     except Exception as e:
         return None
-        raise e
 
 
 def get_application_name():
@@ -111,7 +110,6 @@ def get_application_name():
         return j_env_conf.get("applicationName")
     except Exception as e:
         return None
-        raise e
 
 
 def update_conf():
@@ -187,10 +185,7 @@ def cache_inspect_html():
 
 
 def checkok():
-    if (house_global.packagename != "") & (house_global.hooks_list != []):
-        return True
-    else:
-        return False
+    return bool((house_global.packagename != "") & (house_global.hooks_list != []))
 
 
 def getPackage():
@@ -209,7 +204,7 @@ def setPackage(pkgname):
 
 def setDevice(id):
     house_global.device = house_global.device_manager.get_device(id)
-    print(stylize("[+]Changing Device with id {}".format(id), MightBeImportant))
+    print(stylize(f"[+]Changing Device with id {id}", MightBeImportant))
     try:
         socketio.emit('show_selected_device',
                       {'device_list': json.dumps(house_global.device_dict), 'selection': str(house_global.device.id)},
@@ -225,10 +220,12 @@ def getDevice():
         house_global.device_manager = frida.get_device_manager()
         device_list = house_global.device_manager.enumerate_devices()
         if len(device_list) != 0:
-            remote_device_list = []
-            for dv in device_list:
-                if (str(dv.id) != 'local') & (str(dv.id) != 'tcp'):
-                    remote_device_list.append(dv)
+            remote_device_list = [
+                dv
+                for dv in device_list
+                if (str(dv.id) != 'local') & (str(dv.id) != 'tcp')
+            ]
+
         if len(remote_device_list) == 1:
             house_global.device = remote_device_list[0]
             socketio.emit('update_device',
@@ -238,7 +235,7 @@ def getDevice():
             for dv in remote_device_list:
                 house_global.device_dict[str(dv.id)] = str(dv)
             # Interact with user to select device
-            if house_global.device == None:
+            if house_global.device is None:
                 socketio.emit('select_device',
                               {'device_list': json.dumps(house_global.device_dict)},
                               namespace='/eventBus')
@@ -249,7 +246,7 @@ def getDevice():
                               namespace='/eventBus')
         else:
             raise Exception("No device Found!")
-        # return str(house_global.device)
+            # return str(house_global.device)
     except Exception as e:
         house_global.device = None
         socketio.emit('update_device',
@@ -263,21 +260,24 @@ def onMonitorMessage(message, data):
     house_global.onMessageException = ''
 
     if message['type'] == 'send':
-        if (message.get('payload') != None):
+        if message.get('payload') is None:
+            monitor_log = "No message payload.."
+        else:
             monitor_log = str(message.get('payload'))
             # monitor_log = u''.join(monitor_log).encode('utf-8').strip()
-        else:
-            monitor_log = "No message payload.."
     elif message['type'] == 'error':
-        if (message.get('description') != None):
-            house_global.onMessageException = cgi.escape(message.get('description'))
-        else:
+        if message.get('description') is None:
             house_global.onMessageException = 'No description'
-        print(stylize("[!]Monitor Error: {}".format(house_global.onMessageException), Error))
-        socketio.emit('new_error_message',
-                      {'data': "[!] {}".format(house_global.onMessageException)},
-                      namespace='/eventBus')
-        monitor_log = message.get('payload') if message.get('payload') else ''
+        else:
+            house_global.onMessageException = cgi.escape(message.get('description'))
+        print(stylize(f"[!]Monitor Error: {house_global.onMessageException}", Error))
+        socketio.emit(
+            'new_error_message',
+            {'data': f"[!] {house_global.onMessageException}"},
+            namespace='/eventBus',
+        )
+
+        monitor_log = message.get('payload') or ''
 
     j_monitor_log = json.loads(monitor_log)
 
@@ -318,21 +318,24 @@ def onMessage(message, data):
     house_global.onMessageException = ''
 
     if message['type'] == 'send':
-        if (message.get('payload') != None):
+        if message.get('payload') is None:
+            info = "No message payload.."
+        else:
             info = str(message.get('payload'))
             # info = str(u''.join(info).encode('utf-8').strip())
-        else:
-            info = "No message payload.."
     elif message['type'] == 'error':
-        if (message.get('description') != None):
-            house_global.onMessageException = cgi.escape(message.get('description'))
-        else:
+        if message.get('description') is None:
             house_global.onMessageException = 'No description'
-        print(stylize("[!]Error: {}".format(house_global.onMessageException), Error))
-        socketio.emit('new_error_message',
-                      {'data': "[!] {}".format(house_global.onMessageException)},
-                      namespace='/eventBus')
-        info = message.get('payload') if message.get('payload') else ''
+        else:
+            house_global.onMessageException = cgi.escape(message.get('description'))
+        print(stylize(f"[!]Error: {house_global.onMessageException}", Error))
+        socketio.emit(
+            'new_error_message',
+            {'data': f"[!] {house_global.onMessageException}"},
+            namespace='/eventBus',
+        )
+
+        info = message.get('payload') or ''
     # IPython.embed()
     if "t3llm3mor3ab0ut1t" in info:
         env_info = info.replace("t3llm3mor3ab0ut1t", '')
@@ -405,8 +408,8 @@ def onMessage(message, data):
         html_output = ""
 
         if overload_count > 1:
-            html_output = "<p><code>{}</code></p>".format(
-                cgi.escape(inspect_class_name) + '.' + cgi.escape(inspect_method_name))
+            html_output = f"<p><code>{cgi.escape(inspect_class_name)}.{cgi.escape(inspect_method_name)}</code></p>"
+
             html_output += """
             <form action='/inspect' method='POST'>
               <div class="form-row align-items-center">
@@ -414,7 +417,7 @@ def onMessage(message, data):
                   <label class="mr-sm-2"> Overloads: </label>
                   <select class="custom-select mr-sm-2" id="indexSelect">
             """
-            for i in range(0, overload_count):
+            for i in range(overload_count):
                 html_output += """
                 <option value={}><code>{}</code></option>
                 """.format(str(i), cgi.escape(str(json.dumps(overload_info[i]))).replace("\\\"", ""))
@@ -440,7 +443,11 @@ def onMessage(message, data):
                 <button class="btn btn-success" onclick="genIntercept()">Generate Script</button>
                 <button class="btn btn-primary" class="btn btn-primary" data-toggle="modal" data-target="#intercept_history" onclick="get_intercept_history();">History Scripts</button>
             </div>
-            """.format(cgi.escape(inspect_class_name) + '.' + cgi.escape(inspect_method_name), str(overload_info[0]))
+            """.format(
+                f'{cgi.escape(inspect_class_name)}.{cgi.escape(inspect_method_name)}',
+                str(overload_info[0]),
+            )
+
         else:
             html_output = "No such function you fool"
 
@@ -484,18 +491,21 @@ def prepare_script_fragment(clazz_name, method_name, script_type, overloadIndex=
         context['method_hook'] = str(method_name.replace('.', '_')) + '_hook'
 
         if script_type == "inspect":
-            result = render('./scripts/intercept/inspect.js', context)
+            return render('./scripts/intercept/inspect.js', context)
         elif script_type == "intercept":
-            result = render('./scripts/intercept/intercept.js', context)
+            return render('./scripts/intercept/intercept.js', context)
         elif script_type == "hookmini":
-            result = render('./scripts/hook/hook_mini_frag.js', context)
+            return render('./scripts/hook/hook_mini_frag.js', context)
         else:
-            result = render('./scripts/hook/hook_frag.js', context)
-        return result
+            return render('./scripts/hook/hook_frag.js', context)
     else:
         print(
-            stylize("[!]prepare_script_fragment Error with {} - {} - {} ".format(clazz_name, method_name, script_type),
-                    Error))
+            stylize(
+                f"[!]prepare_script_fragment Error with {clazz_name} - {method_name} - {script_type} ",
+                Error,
+            )
+        )
+
         return ''
 
 
@@ -520,17 +530,17 @@ def prepare_monitor_fragment(clazz_name, method_name, monitor_type='misc', instr
     return result
 
 def prepare_native_script_fragment(so_name, method_name):
-    context = {
-        'so_name': '',
-        'method_name': '',
-    }
     if (so_name != None) & (so_name != '') & (method_name != None) & (method_name != ''):
-        context['so_name'] = so_name
-        context['method_name'] = method_name
-        result = render('./scripts/hook/native_hook_frag.js', context)
-        return result
+        context = {'so_name': so_name, 'method_name': method_name}
+        return render('./scripts/hook/native_hook_frag.js', context)
     else:
-        print(stylize("[!]prepare_native_script_fragment Error with {} - {} ".format(so_name, method_name), Error))
+        print(
+            stylize(
+                f"[!]prepare_native_script_fragment Error with {so_name} - {method_name} ",
+                Error,
+            )
+        )
+
         return ''
 
 def build_dyload_script(dy_dic, is_mini = False):
@@ -548,10 +558,12 @@ def build_dyload_script(dy_dic, is_mini = False):
 
             hook_frag_script += prepare_script_fragment(clazz_name, method_name, ("hookmini" if is_mini else "hook"), overload_type=overload_type, is_dynamic = True)
         context = {'dyload_path': dyload_path, 'hook_frag_script': hook_frag_script, 'dynamicHookOption': dynamicHookOption}
-        if not is_mini:
-            dyload_script += render(("scripts/hook/hook_dyload_frag.js"), context)
-        else:
-            dyload_script += render(("scripts/hook/hook_dyload_frag_mini.js"), context)
+        dyload_script += (
+            render(("scripts/hook/hook_dyload_frag_mini.js"), context)
+            if is_mini
+            else render(("scripts/hook/hook_dyload_frag.js"), context)
+        )
+
     return dyload_script
 
 def refresh():
@@ -576,8 +588,6 @@ def build_hook_script():
     basicscript = ""
     nativescript = ""
     dy_dic = {}
-    dyloadscript = ""
-
     for entry in hooks_list:
         clazz_name = entry['classname']
         method_name = entry['methodname']
@@ -590,7 +600,7 @@ def build_hook_script():
             nativescript += prepare_native_script_fragment(clazz_name, method_name)
         elif dyload_path is not None:
             d = dy_dic.get(dyload_path)
-            if d == None:
+            if d is None:
                 dy_dic[dyload_path] = [[clazz_name, method_name, overload_type, instruction, dynamicHookOption]]
             elif type(d) == list:
                 dy_dic[dyload_path].append([clazz_name, method_name, overload_type, instruction, dynamicHookOption])
@@ -600,9 +610,7 @@ def build_hook_script():
         else:
             basicscript += prepare_script_fragment(clazz_name, method_name, "hook", overload_type=overload_type)
 
-    if len(dy_dic) > 0:
-        dyloadscript = build_dyload_script(dy_dic)
-
+    dyloadscript = build_dyload_script(dy_dic) if dy_dic else ""
     context = {'scripts': basicscript, 'native_scripts': nativescript, "dyloadscript": dyloadscript}
     # print(context)
     result = render('./scripts/hook/hook_tpl.js', context)
@@ -615,7 +623,6 @@ def build_hook_mini_script():
     hooks_list = house_global.hook_conf['hooks_list']
     basicscript = ""
     nativescript = ""
-    dyloadscript = ""
     dy_dic = {}
 
     for entry in hooks_list:
@@ -630,7 +637,7 @@ def build_hook_mini_script():
             nativescript += prepare_native_script_fragment(clazz_name, method_name)
         elif dyload_path is not None:
             d = dy_dic.get(dyload_path)
-            if d == None:
+            if d is None:
                 dy_dic[dyload_path] = [[clazz_name, method_name, overload_type, instruction, dynamicHookOption]]
             elif type(d) == list:
                 dy_dic[dyload_path].append([clazz_name, method_name, overload_type, instruction, dynamicHookOption])
@@ -639,8 +646,7 @@ def build_hook_mini_script():
         else:
             # java hook
             basicscript += prepare_script_fragment(clazz_name, method_name, "hookmini", overload_type=overload_type)
-    if len(dy_dic) > 0:
-        dyloadscript = build_dyload_script(dy_dic, is_mini= True)
+    dyloadscript = build_dyload_script(dy_dic, is_mini= True) if dy_dic else ""
     context = {'scripts': basicscript, 'native_scripts': nativescript, 'dyloadscript': dyloadscript}
 
     result = render('./scripts/hook/hook_tpl_mini.js', context)
@@ -650,10 +656,13 @@ def build_hook_mini_script():
 
 
 def build_env_script():
-    # print(stylize("[+]Building env script for " + house_global.packagename + " .. ", Info))
-    result = ''
-    if house_global.packagename != None:
-        result = render('./scripts/enum/env.js', {'packageName': house_global.packagename})
+    if house_global.packagename is None:
+        result = ''
+    else:
+        result = render(
+            './scripts/enum/env.js', {'packageName': house_global.packagename}
+        )
+
     cache_script("env_cache", result)
     return result
 
@@ -670,7 +679,12 @@ def build_monitor_script():
             type_to_build = file_monitor_list_entry['type']
             method_to_build = file_monitor_list_entry['methodname']
             instruction = file_monitor_list_entry.get('instruction')
-            if house_global.monitor_conf.get('SWITCH_' + type_to_build.upper()) == 1:
+            if (
+                house_global.monitor_conf.get(
+                    f'SWITCH_{type_to_build.upper()}'
+                )
+                == 1
+            ):
                 render_monitor_list.append(file_monitor_list_entry)
     except Exception as e:
         raise e
@@ -712,9 +726,7 @@ def preload_stetho_script():
             print(stylize("[!] Have to reload to preload, trying to spawn it..", MightBeImportant))
             pid = house_global.device.spawn([house_global.packagename])
             house_global.session = house_global.device.attach(pid)
-            pending = True
-
-            if get_application_name() == None:
+            if get_application_name() is None:
                 print(stylize("[!] What is the application name? Try refresh House", Error))
                 return
             else:
@@ -725,13 +737,15 @@ def preload_stetho_script():
 
                 house_global.stetho_script_object.load()
 
+                pending = True
+
                 # print (stylize('[+] Loading the new script..{} {}'.format(str(house_global.device), str(house_global.packagename)), Info))
 
                 if pending:
                     # IPython.embed()
                     house_global.device.resume(pid)
         except Exception as e:
-            print(stylize("[!]sideload_script Exception: {}".format(str(e)), Error))
+            print(stylize(f"[!]sideload_script Exception: {str(e)}", Error))
             traceback.print_exc(file=sys.stdout)
             raise e
 
@@ -774,7 +788,7 @@ def run_preload_script():
                     house_global.session = house_global.device.attach(pid)
                     pending = True
 
-            if get_application_name() == None:
+            if get_application_name() is None:
                 print(stylize("[!] What is the application name? Try refresh House", Error))
                 return
             else:
@@ -794,7 +808,7 @@ def run_preload_script():
                     # IPython.embed()
                     house_global.device.resume(pid)
         except Exception as e:
-            print(stylize("[!]run_preload_script Exception: {}".format(str(e)), Error))
+            print(stylize(f"[!]run_preload_script Exception: {str(e)}", Error))
             traceback.print_exc(file=sys.stdout)
             raise e
 
